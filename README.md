@@ -1,75 +1,54 @@
-# React + TypeScript + Vite
+# Adaptive Layout Engine for Multi-Surface Ads
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A constraint-based layout engine that takes a single declarative ad spec and adapts it across fundamentally different surfaces (mobile, broadcast, kiosk) using a priority-ordered resolution algorithm — not hardcoded per-surface layouts.
 
-Currently, two official plugins are available:
+## Setup
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```bash
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
+Then open the printed local URL (typically `http://localhost:5173`) in your browser.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Running the demo
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+- The page shows a row of buttons — one per surface profile (mobile-portrait, mobile-landscape, broadcast-lower-third, retail-kiosk).
+- Click any button to instantly re-resolve the same ad spec for that surface. No code changes or page reload needed.
+- The currently selected surface is shown in bold.
 
-```
+## Known limitations
+
+- Layout direction is decided by a single rule (wider-than-tall → row, otherwise → column). Square surfaces (e.g. the kiosk) currently default to column mode, which is functionally correct but visually similar in structure to portrait mobile — this is a known area for future refinement, not a bug.
+- Text elements use estimated sizes based on `minTextSize`/role, not actual measured text rendering (no text-measurement API is used).
+- No animated transition when switching surfaces — layout changes are instant.
+- Fixed set of five element types (headline, hero image, CTA, price, branding) — the engine isn't a general-purpose arbitrary-element system.
+
+## Time spent
+
+Approximately 2-3 hours, focused on the core resolver algorithm, type system, and surface-adaptive demo.
+## Layout algorithm
+
+**Resolution flow:**
+
+Ad Spec + Surface Profile → resolveLayout() → Resolved Layout (per-element x/y/width/height/visible) → React renders positioned boxes
+
+
+**Step by step:**
+
+1. **Sort by priority.** All elements are sorted so priority 1 (most important) is processed first, priority 3 (least important, e.g. branding) is processed last. This ordering is what makes degradation predictable — whatever runs out of room is always the least important thing left.
+
+2. **Decide layout direction.** A surface is treated as "wide" if its width is greater than its height (e.g. broadcast-lower-third: 1920×250). Wide surfaces arrange elements left-to-right in a row; all other surfaces (including square ones, like the kiosk) arrange elements top-to-bottom in a column. This single rule — not a per-surface hardcoded branch — is what produces genuinely different arrangements for different aspect ratios.
+
+3. **Compute each element's natural size.** A `getNaturalSize()` function calculates how big an element wants to be, based on its `role` (headline, hero image, CTA, price, branding), the surface's constraints (`minTapTarget`, `minTextSize`), and the chosen layout direction. For example, a CTA button always sizes itself to at least the surface's `minTapTarget`, regardless of surface — this directly enforces the "hard constraint" requirement from the brief.
+
+4. **Place or drop.** For each element, in priority order, the algorithm checks whether its natural size fits in the space remaining along the layout axis (width, if row; height, if column). If it fits, the element is placed immediately after the previous one (no gaps, no overlaps) and the remaining space shrinks accordingly. If it doesn't fit, the element is marked `visible: false` and skipped — it is never shrunk into an overlapping or clipped state, and never silently dropped without being explicitly marked.
+
+**Why this counts as a real algorithm, not a lookup table:** the same `resolveLayout()` function runs unmodified for every surface. Nothing in the resolver checks `if (surface.id === "mobile-portrait")` — the different outcomes come entirely from the surface's actual width/height/constraints being fed through the same priority-and-direction logic. This was verified directly: mobile-landscape (480×320, row mode) correctly drops the branding logo when space runs out, while mobile-portrait (320×480, column mode) has enough room to keep all five elements — same function, same input spec, different real constraints, different real outcome.
+
+## TypeScript design
+
+- **Union types restrict valid values.** `ElementType` (`"text" | "image" | "button"`) and `ElementRole` (`"primary" | "hero" | "action" | "branding" | "secondary"`) can only ever hold one of their listed string values. Assigning anything else — e.g. `role: "featured"` — is a compile-time error, not a runtime surprise. This was verified directly during development: an invalid role value was flagged by TypeScript before the app ever ran.
+- **Interfaces define required shapes.** `AdElement`, `AdSpec`, `SurfaceProfile`, and `ResolvedElement` each describe exactly which fields are required and what type each one must be. It is not possible to construct, for example, an `AdElement` missing a `priority`, or with `priority` as a string instead of a number — TypeScript rejects it before compilation succeeds.
+- **Optional fields model real per-surface variation.** `SurfaceProfile` fields like `minTapTarget`, `minTextSize`, and `touchOnly` are marked optional (`?`), since not every surface needs every constraint (e.g. a broadcast screen has no tap target, but does have a minimum text size). This lets each surface only declare what's actually relevant to it, while still being fully type-checked.
+- **Function signatures enforce contracts end to end.** `resolveLayout(spec: AdSpec, surface: SurfaceProfile): ResolvedElement[]` guarantees, at compile time, that the resolver always receives valid input and always returns a fully-typed array a renderer can consume directly — no `any` types, no guessing what shape the output has.

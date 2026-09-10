@@ -3,6 +3,7 @@ import { resolveLayout } from "./resolver";
 import { productAd } from "./spec";
 import { allSurfaces } from "./surfaces";
 import type { SurfaceProfile } from "./surfaces";
+import "./App.css";
 
 function App() {
   const [selectedSurface, setSelectedSurface] = useState<SurfaceProfile>(
@@ -13,16 +14,12 @@ function App() {
 
   return (
     <div style={{ padding: 20, fontFamily: "sans-serif" }}>
-      <div style={{ marginBottom: 20 }}>
+      <div className="picker">
         {allSurfaces.map((surface) => (
           <button
             key={surface.id}
             onClick={() => setSelectedSurface(surface)}
-            style={{
-              marginRight: 8,
-              padding: "8px 12px",
-              fontWeight: surface.id === selectedSurface.id ? "bold" : "normal",
-            }}
+            className={surface.id === selectedSurface.id ? "active" : ""}
           >
             {surface.id}
           </button>
@@ -30,13 +27,10 @@ function App() {
       </div>
 
       <div
+        className="surface-box"
         style={{
-          position: "relative",
           width: selectedSurface.width,
           height: selectedSurface.height,
-          border: "2px solid black",
-          background: "#f0f0f0",
-          maxWidth: "100%",
         }}
       >
         {layout
@@ -44,21 +38,12 @@ function App() {
           .map((el) => (
             <div
               key={el.id}
+              className="element-box"
               style={{
-                position: "absolute",
                 left: el.x,
                 top: el.y,
                 width: el.width,
                 height: el.height,
-                background: "steelblue",
-                color: "white",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 12,
-                boxSizing: "border-box",
-                border: "1px solid white",
-                overflow: "hidden",
               }}
             >
               {el.id}
