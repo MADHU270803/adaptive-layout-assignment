@@ -3,6 +3,7 @@ import { resolveLayout } from "./resolver";
 import { productAd } from "./spec";
 import { allSurfaces } from "./surfaces";
 
+
 import type { SurfaceProfile } from "./surfaces";
 import "./App.css";
 
@@ -13,7 +14,7 @@ function App() {
 
   const layout = resolveLayout(productAd, selectedSurface);
 
-    return (
+      return (
     <div style={{ padding: 20, fontFamily: "sans-serif" }}>
       <div className="picker">
         {allSurfaces.map((surface) => (
@@ -25,7 +26,6 @@ function App() {
             {surface.id}
           </button>
         ))}
-    
       </div>
 
       <div
@@ -54,5 +54,5 @@ function App() {
       </div>
     </div>
   );
-}
+  }
 export default App;

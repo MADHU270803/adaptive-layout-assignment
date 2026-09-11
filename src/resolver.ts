@@ -39,6 +39,76 @@ function getNaturalSize(
   }
 }
 
+// Places a group of elements stacked vertically inside one column of a
+// fixed width, starting at the given horizontal offset. Uses the same
+// priority-ordered fit-or-drop rule as the single-column resolver below.
+function placeColumn(
+  elements: AdElement[],
+  surface: SurfaceProfile,
+  columnWidth: number,
+  xOffset: number
+): ResolvedElement[] {
+  const results: ResolvedElement[] = [];
+  let currentY = 0;
+  let remainingHeight = surface.height;
+
+  for (const element of elements) {
+    const natural = getNaturalSize(element, surface, false);
+
+    if (natural.height > remainingHeight) {
+      results.push({
+        id: element.id,
+        x: 0,
+        y: 0,
+        width: 0,
+        height: 0,
+        visible: false,
+      });
+      continue;
+    }
+
+    const clampedWidth = Math.min(natural.width, columnWidth);
+    const clampedHeight = Math.min(natural.height, surface.height);
+
+    results.push({
+      id: element.id,
+      x: xOffset,
+      y: currentY,
+      width: clampedWidth,
+      height: clampedHeight,
+      visible: true,
+    });
+
+    currentY += clampedHeight;
+    remainingHeight -= clampedHeight;
+  }
+
+  return results;
+}
+
+// Roughly square surfaces get a genuinely different 2D composition instead
+// of reusing the single-column stack: primary content (headline/hero) in a
+// left column, secondary content (CTA/price/branding) in a right column.
+function resolveGridLayout(
+  sortedElements: AdElement[],
+  surface: SurfaceProfile
+): ResolvedElement[] {
+  const leftColumnWidth = surface.width * 0.6;
+  const rightColumnWidth = surface.width - leftColumnWidth;
+
+  const leftElements = sortedElements.filter(
+    (el) => el.role === "primary" || el.role === "hero"
+  );
+  const rightElements = sortedElements.filter(
+    (el) => el.role !== "primary" && el.role !== "hero"
+  );
+
+  return [
+    ...placeColumn(leftElements, surface, leftColumnWidth, 0),
+    ...placeColumn(rightElements, surface, rightColumnWidth, leftColumnWidth),
+  ];
+}
+
 export function resolveLayout(
   spec: AdSpec,
   surface: SurfaceProfile
@@ -47,7 +117,13 @@ export function resolveLayout(
     (a, b) => a.priority - b.priority
   );
 
-  const isWide = surface.width > surface.height;
+  const aspectRatio = surface.width / surface.height;
+  const isWide = aspectRatio > 1.2;
+  const isSquarish = aspectRatio >= 0.8 && aspectRatio <= 1.2;
+
+  if (isSquarish) {
+    return resolveGridLayout(sortedElements, surface);
+  }
 
   const results: ResolvedElement[] = [];
   let currentPos = 0;
@@ -69,8 +145,12 @@ export function resolveLayout(
       continue;
     }
 
-      const clampedWidth = isWide ? natural.width : Math.min(natural.width, surface.width);
-    const clampedHeight = isWide ? Math.min(natural.height, surface.height) : natural.height;
+    const clampedWidth = isWide
+      ? natural.width
+      : Math.min(natural.width, surface.width);
+    const clampedHeight = isWide
+      ? Math.min(natural.height, surface.height)
+      : natural.height;
 
     results.push({
       id: element.id,
