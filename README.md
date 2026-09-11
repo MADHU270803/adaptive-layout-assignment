@@ -28,6 +28,18 @@ Then open the printed local URL (typically `http://localhost:5173`) in your brow
 ## Time spent
 
 Approximately 4-5 hours total: core resolver algorithm, type system, and surface-adaptive demo, plus a self-directed adversarial audit against the assignment brief and two targeted correctness fixes (cross-axis bounds clamping, aspect-ratio-based composition for square surfaces).
+
+## AI tool usage
+
+Claude (Anthropic) was used throughout this assignment as a guided pair-programming assistant. Specifically:
+
+- Explaining TypeScript and React concepts step by step while writing the code (this was my first project using either).
+- Proposing the initial resolver algorithm design (priority sort → aspect-ratio-based composition → fit-or-drop placement) and walking through the reasoning behind each part before it was implemented.
+- Running a self-directed adversarial audit of the finished project against this assignment brief, which surfaced two real correctness issues: cross-axis elements could exceed surface bounds on unusually small/narrow surfaces, and the square kiosk surface was structurally identical to a scaled-up mobile portrait layout rather than a genuine recomposition.
+- Proposing and explaining the fixes for both issues, which were reviewed, approved, and verified (build checks, all 4 required surfaces, and additional unseen adversarial surfaces) before being committed.
+
+All code in this repository was typed and run by me, and I can explain the resolver algorithm, the type system, and the architecture in detail.
+
 ## Layout algorithm
 
 **Resolution flow:**
