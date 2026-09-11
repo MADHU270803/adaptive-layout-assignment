@@ -69,12 +69,15 @@ export function resolveLayout(
       continue;
     }
 
+      const clampedWidth = isWide ? natural.width : Math.min(natural.width, surface.width);
+    const clampedHeight = isWide ? Math.min(natural.height, surface.height) : natural.height;
+
     results.push({
       id: element.id,
       x: isWide ? currentPos : 0,
       y: isWide ? 0 : currentPos,
-      width: natural.width,
-      height: natural.height,
+      width: clampedWidth,
+      height: clampedHeight,
       visible: true,
     });
 
