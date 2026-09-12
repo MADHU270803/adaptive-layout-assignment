@@ -29,4 +29,3 @@ export const productAd = defineAd({
     { id: "logo", type: "image", role: "branding", priority: 3 },
   ],
 });
-const badTest: AdElement = { id: "x", type: "text", role: "featured", priority: 1 };
